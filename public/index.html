@@ -1,14 +1,66 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Image Quality Report</title><style>
 *{box-sizing:border-box}body{margin:0;background:#0e1523;color:#f2f6ff;font:15px system-ui,Segoe UI,sans-serif}.wrap{max-width:1200px;margin:32px auto;padding:0 20px}h1{font-size:30px;margin:0 0 6px}.muted{color:#a5b3c8}.panel{background:#1a2639;border:1px solid #32445e;border-radius:14px;padding:22px;margin:18px 0}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.stat{padding:16px;border-radius:10px;background:#101b2c}.stat b{display:block;font-size:28px}.stat span{color:#a5b3c8;font-size:13px}.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}button,a.btn{border:0;border-radius:9px;background:#4379ed;color:white;font:inherit;font-weight:700;padding:12px 17px;text-decoration:none;cursor:pointer}select{background:#101b2c;border:1px solid #51617a;color:white;border-radius:8px;padding:12px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px}.item{background:#101b2c;border:1px solid #334862;border-radius:10px;overflow:hidden}.item img{width:100%;height:170px;object-fit:contain;background:#0a1220}.body{padding:14px}.name{overflow-wrap:anywhere;font-weight:700}.small{font-size:12px;color:#a5b3c8;overflow-wrap:anywhere}.pill{display:inline-block;border-radius:6px;padding:4px 9px;font-size:12px;font-weight:800;background:#314158}.FAIL{background:#6e2833}.REVIEW{background:#72582b}.PASS{background:#23513c}.ERROR{background:#58394e}#message{color:#f6c577}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
 .launch{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.launch button:disabled{opacity:.5;cursor:not-allowed}progress{width:100%;height:18px;accent-color:#4379ed}dialog{background:#1a2639;color:#f2f6ff;border:1px solid #51617a;border-radius:14px;padding:25px;max-width:480px;width:calc(100% - 30px)}dialog::backdrop{background:#050912bd}.costrow{display:flex;justify-content:space-between;gap:18px;padding:10px 0;border-bottom:1px solid #35455c}.costrow strong{text-align:right}.costrow.total{font-size:19px;font-weight:700}.counts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.counts>div{background:#101b2c;padding:12px;border-radius:9px;text-align:center}.counts strong{display:block;font-size:22px}.counts span{font-size:11px;color:#a5b3c8}.secondary{background:#50617b}.warning{color:#f6c577;font-size:12px}</style></head><body><main class="wrap"><h1>AI Image Quality Report</h1><p class="muted">Paste your images or folders into the project's <code>images</code> folder, then click <strong>Start Checking</strong>. No browser uploads required.</p><section class="panel"><h2>Run Image Checking</h2><p class="muted">Add files to the local <code>images</code> folder first. Start will scan and show an estimated API charge for your approval.</p><div class="launch"><button id="startCheck">Start Checking</button><button id="stopCheck" class="secondary" disabled>Stop After Current Image</button><span id="runState" class="muted">Idle</span></div><p id="runFile" class="small"></p><progress id="runProgress" value="0" max="100"></progress><p id="runCounts" class="muted">0 / 0 processed</p></section><dialog id="confirmDialog"><h2>Confirm Image Checking</h2><div class="costrow"><span>OpenAI API Model</span><strong id="apiModel"></strong></div><div class="counts"><div><strong id="totalImages">0</strong><span>Total Images</span></div><div><strong id="checkedImages">0</strong><span>Already Checked</span></div><div><strong id="remainingImages">0</strong><span>Remaining Images</span></div></div><div class="costrow"><span>API Cost Per 2K Images</span><strong id="cost2k"></strong></div><div class="costrow"><span>Estimated API Cost (Remaining Images)</span><strong id="estimatedCost"></strong></div><div class="costrow total"><span>Total Cost to Continue</span><strong id="totalCost"></strong></div><p class="warning">Estimated API cost only. Actual charges may vary. Clicking No will not start any image API requests.</p><div class="launch"><button class="secondary" id="cancelCheck">No, Cancel</button><button id="confirmCheck">Yes, Continue</button></div></dialog><section class="panel"><div class="toolbar"><button id="refresh">Refresh Report</button><a class="btn" href="/api/report.pdf">Download PDF Report</a><select id="filter"><option value="ALL">All images</option><option value="FAIL">Defected only</option><option value="REVIEW">Review only</option><option value="PASS">Passed only</option><option value="ERROR">Errors only</option></select></div><p id="message"></p><p id="updated" class="muted"></p></section><section class="panel"><div class="stats"><div class="stat"><span>Checked</span><b id="total">0</b></div><div class="stat"><span>PASS</span><b id="pass">0</b></div><div class="stat"><span>FAIL</span><b id="fail">0</b></div><div class="stat"><span>REVIEW</span><b id="review">0</b></div><div class="stat"><span>ERROR</span><b id="error">0</b></div></div><p id="cost" class="muted"></p></section><section class="panel"><h2>Image Results</h2><div id="cards" class="cards"></div></section></main><script>
-const $=id=>document.getElementById(id);let report={results:[]},pendingToken=null;const money=n=>'function render(){const s=report.summary||{};for(const k of ['total','pass','fail','review','error'])$(k).textContent=s[k]||0;$('cost').textContent='Estimated API usage: $'+Number(s.cost||0).toFixed(4);$('updated').textContent=report.updatedAt?'Last updated: '+new Date(report.updatedAt).toLocaleString():'No report yet';$('cards').replaceChildren();const filter=$('filter').value;const rows=report.results.filter(r=>filter==='ALL'||r.status===filter);if(!rows.length){$('cards').textContent='No matching images found.';return}for(const r of rows.slice().reverse()){const card=document.createElement('article');card.className='item';if(['FAIL','REVIEW'].includes(r.status)&&r.outputPath){const img=document.createElement('img');img.loading='lazy';img.src='/api/thumbnail/'+encodeURIComponent(r.id);img.alt='Thumbnail of '+r.fileName;card.append(img)}const body=document.createElement('div');body.className='body';const name=document.createElement('p');name.className='name';name.textContent=r.fileName;const status=document.createElement('span');status.className='pill '+r.status;status.textContent=r.status;const score=document.createElement('p');score.textContent='Quality score: '+(r.score??'N/A')+' / 100';const path=document.createElement('p');path.className='small';path.textContent=r.relativePath;const issues=document.createElement('p');issues.textContent=(r.issues||[]).join('; ')||'No reported issues';const explanation=document.createElement('p');explanation.className='small';explanation.textContent=r.explanation||'';body.append(name,status,score,path,issues,explanation);card.append(body);$('cards').append(card)}}
-async function refresh(){try{const res=await fetch('/api/report');if(!res.ok)throw Error('Could not load report');report=await res.json();$('message').textContent='';render()}catch(e){$('message').textContent=e.message}}$('refresh').onclick=refresh;$('filter').onchange=render;refresh();setInterval(refresh,12000);setInterval(poll,1500);poll();
-</script></body></html>+Number(n||0).toFixed(4);async function post(url,data={}){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const json=await response.json();if(!response.ok)throw Error(json.error||'Request failed');return json}
-$('startCheck').onclick=async()=>{try{$('message').textContent='Scanning images...';const e=await post('/api/check/estimate');pendingToken=e.token;$('apiModel').textContent=e.model;$('totalImages').textContent=e.totalImages;$('checkedImages').textContent=e.alreadyChecked;$('remainingImages').textContent=e.pendingImages;$('cost2k').textContent=money(e.per2000);$('estimatedCost').textContent=money(e.totalCost);$('totalCost').textContent=money(e.totalCost);$('message').textContent='';$('confirmDialog').showModal()}catch(e){$('message').textContent=e.message}};
-$('cancelCheck').onclick=async()=>{try{await post('/api/check/cancel',{token:pendingToken})}catch{}pendingToken=null;$('confirmDialog').close();$('runState').textContent='Cancelled — no new API requests sent.'};
-$('confirmCheck').onclick=async()=>{try{await post('/api/check/confirm',{token:pendingToken});pendingToken=null;$('confirmDialog').close();$('message').textContent='Image checking started.';await poll()}catch(e){$('message').textContent=e.message}};
-$('stopCheck').onclick=async()=>{try{await post('/api/check/stop');$('runState').textContent='Stopping after current image...'}catch(e){$('message').textContent=e.message}};
-async function poll(){try{const r=await fetch('/api/check/status');const s=await r.json();$('runState').textContent=s.state;$('runFile').textContent=s.currentFile||s.error||'';$('runCounts').textContent=s.processed+' / '+s.total+' processed';$('runProgress').value=s.total?100*s.processed/s.total:0;$('startCheck').disabled=s.state==='running'||s.state==='awaiting_confirmation';$('stopCheck').disabled=s.state!=='running';if(s.state==='completed'||s.state==='stopped')await refresh()}catch(e){$('message').textContent=e.message}}
+
+const $=id=>document.getElementById(id);
+let report={results:[]},pendingToken=null;
+const money=n=>'$'+Number(n||0).toFixed(4);
+async function post(url,data={}){
+ const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ const json=await response.json();
+ if(!response.ok)throw Error(json.error||'Request failed');
+ return json;
+}
+$('startCheck').onclick=async()=>{
+ try{
+  $('message').textContent='Scanning images...';
+  const e=await post('/api/check/estimate');
+  pendingToken=e.token;
+  $('apiModel').textContent=e.model;
+  $('totalImages').textContent=e.totalImages;
+  $('checkedImages').textContent=e.alreadyChecked;
+  $('remainingImages').textContent=e.pendingImages;
+  $('cost2k').textContent=money(e.per2000);
+  $('estimatedCost').textContent=money(e.totalCost);
+  $('totalCost').textContent=money(e.totalCost);
+  $('message').textContent='';
+  $('confirmDialog').showModal();
+ }catch(e){$('message').textContent=e.message}
+};
+$('cancelCheck').onclick=async()=>{
+ try{await post('/api/check/cancel',{token:pendingToken})}catch{}
+ pendingToken=null;
+ $('confirmDialog').close();
+ $('runState').textContent='Cancelled — no new API requests sent.';
+};
+$('confirmDialog').addEventListener('cancel',()=>{if(pendingToken){post('/api/check/cancel',{token:pendingToken}).catch(()=>{});pendingToken=null}});
+$('confirmCheck').onclick=async()=>{
+ try{
+  await post('/api/check/confirm',{token:pendingToken});
+  pendingToken=null;
+  $('confirmDialog').close();
+  $('message').textContent='Image checking started.';
+  await poll();
+ }catch(e){$('message').textContent=e.message}
+};
+$('stopCheck').onclick=async()=>{
+ try{await post('/api/check/stop');$('runState').textContent='Stopping after current image...'}
+ catch(e){$('message').textContent=e.message}
+};
+async function poll(){
+ try{
+  const r=await fetch('/api/check/status');
+  const s=await r.json();
+  $('runState').textContent=s.state;
+  $('runFile').textContent=s.currentFile||s.error||'';
+  $('runCounts').textContent=s.processed+' / '+s.total+' processed';
+  $('runProgress').value=s.total?100*s.processed/s.total:0;
+  $('startCheck').disabled=s.state==='running'||s.state==='awaiting_confirmation';
+  $('stopCheck').disabled=s.state!=='running';
+  if(s.state==='completed'||s.state==='stopped')await refresh();
+ }catch(e){$('message').textContent=e.message}
+}
 function render(){const s=report.summary||{};for(const k of ['total','pass','fail','review','error'])$(k).textContent=s[k]||0;$('cost').textContent='Estimated API usage: $'+Number(s.cost||0).toFixed(4);$('updated').textContent=report.updatedAt?'Last updated: '+new Date(report.updatedAt).toLocaleString():'No report yet';$('cards').replaceChildren();const filter=$('filter').value;const rows=report.results.filter(r=>filter==='ALL'||r.status===filter);if(!rows.length){$('cards').textContent='No matching images found.';return}for(const r of rows.slice().reverse()){const card=document.createElement('article');card.className='item';if(['FAIL','REVIEW'].includes(r.status)&&r.outputPath){const img=document.createElement('img');img.loading='lazy';img.src='/api/thumbnail/'+encodeURIComponent(r.id);img.alt='Thumbnail of '+r.fileName;card.append(img)}const body=document.createElement('div');body.className='body';const name=document.createElement('p');name.className='name';name.textContent=r.fileName;const status=document.createElement('span');status.className='pill '+r.status;status.textContent=r.status;const score=document.createElement('p');score.textContent='Quality score: '+(r.score??'N/A')+' / 100';const path=document.createElement('p');path.className='small';path.textContent=r.relativePath;const issues=document.createElement('p');issues.textContent=(r.issues||[]).join('; ')||'No reported issues';const explanation=document.createElement('p');explanation.className='small';explanation.textContent=r.explanation||'';body.append(name,status,score,path,issues,explanation);card.append(body);$('cards').append(card)}}
-async function refresh(){try{const res=await fetch('/api/report');if(!res.ok)throw Error('Could not load report');report=await res.json();$('message').textContent='';render()}catch(e){$('message').textContent=e.message}}$('refresh').onclick=refresh;$('filter').onchange=render;refresh();setInterval(refresh,12000);
+async function refresh(){try{const res=await fetch('/api/report');if(!res.ok)throw Error('Could not load report');report=await res.json();$('message').textContent='';render()}catch(e){$('message').textContent=e.message}}$('refresh').onclick=refresh;$('filter').onchange=render;refresh();setInterval(refresh,12000);setInterval(poll,1500);poll();
+
 </script></body></html>
