@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
-import {INBOX,DEFECTED,REVIEW,STATE,REPORT,scan,signature,sameSignature,inspect,moveResult,readJson,writeJson,estimatePerImage,stats} from './engine.js';
+import {INBOX,DEFECTED,REVIEW,STATE,REPORT,scan,signature,sameSignature,inspect,moveResult,readJson,writeJson,estimatePerImage,stats,reviewVersion} from './engine.js';
 let current=null,stop=false;
 export function status(){return current?{...current}: {state:'idle',processed:0,total:0,currentFile:'',error:''}}
 export async function prepare(){
@@ -9,9 +9,9 @@ export async function prepare(){
  const results=Array.isArray(saved.results)?saved.results:[];
  const known=new Map(results.map(r=>[r.relativePath,r]));
  const pending=[];
- for(const relativePath of files){const sig=await signature(relativePath),old=known.get(relativePath);if(!old||old.status==='ERROR'||!sameSignature(sig,old.signature))pending.push({relativePath,sig})}
+ for(const relativePath of files){const sig=await signature(relativePath),old=known.get(relativePath);if(!old||old.status==='ERROR'||old.reviewVersion!==reviewVersion||!sameSignature(sig,old.signature))pending.push({relativePath,sig})}
  const token=crypto.randomUUID();
- const plan={token,createdAt:Date.now(),totalImages:files.length,alreadyChecked:files.length-pending.length,pendingImages:pending.length,perImage:estimatePerImage,per2000:estimatePerImage*2000,totalCost:estimatePerImage*pending.length,pending};
+ const plan={token,createdAt:Date.now(),fileNames:files,totalImages:files.length,alreadyChecked:files.length-pending.length,pendingImages:pending.length,perImage:estimatePerImage,per2000:estimatePerImage*2000,totalCost:estimatePerImage*pending.length,pending};
  current={state:'awaiting_confirmation',processed:0,total:pending.length,currentFile:'',error:'',plan};
  return {token,totalImages:plan.totalImages,alreadyChecked:plan.alreadyChecked,pendingImages:plan.pendingImages,perImage:plan.perImage,per2000:plan.per2000,model:process.env.OPENAI_MODEL||'gpt-4.1-nano',totalCost:plan.totalCost};
 }
@@ -21,7 +21,7 @@ export async function start(token){
  const plan=current.plan;
  // Check files are still present and unchanged before honoring this estimate.
  for(const p of plan.pending){let now;try{now=await signature(p.relativePath)}catch{throw Error('Input folder changed. Please estimate again.')}if(!sameSignature(now,p.sig))throw Error('Input folder changed. Please estimate again.')}
- const nowFiles=await scan();if(nowFiles.length!==plan.totalImages)throw Error('Input folder changed. Please estimate again.');
+ const nowFiles=await scan();if(nowFiles.length!==plan.totalImages||nowFiles.some((name,i)=>name!== (await Promise.resolve(plan.fileNames))[i]))throw Error('Input folder changed. Please estimate again.');
  current={state:'running',processed:0,total:plan.pending.length,currentFile:'',error:''};stop=false;
  void run(plan).catch(e=>{current={...current,state:'error',error:e.message}});
  return {started:true};
