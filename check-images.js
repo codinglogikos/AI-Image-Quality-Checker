@@ -2,7 +2,7 @@ import 'dotenv/config';
 import fs from 'node:fs/promises';
 import readline from 'node:readline/promises';
 import {stdin,stdout} from 'node:process';
-import {INBOX,DEFECTED,REVIEW,STATE,REPORT,scan,signature,sameSignature,inspect,moveResult,readJson,writeJson,estimatePerImage,stats} from './engine.js';
+import {INBOX,DEFECTED,REVIEW,STATE,REPORT,scan,signature,sameSignature,inspect,moveResult,readJson,writeJson,estimatePerImage,stats,reviewVersion} from './engine.js';
 
 const rl=readline.createInterface({input:stdin,output:stdout});
 let cancelled=false;process.on('SIGINT',()=>{cancelled=true;console.log('\nStopping safely after current image...')});
@@ -14,7 +14,7 @@ try{
  const pending=[];
  for(const relativePath of files){
   const sig=await signature(relativePath),old=known.get(relativePath);
-  if(!old||old.status==='ERROR'||!sameSignature(sig,old.signature))pending.push({relativePath,sig});
+  if(!old||old.status==='ERROR'||old.reviewVersion!==reviewVersion||!sameSignature(sig,old.signature))pending.push({relativePath,sig});
  }
  const resumed=files.length-pending.length;
  const estimated=estimatePerImage*pending.length;
