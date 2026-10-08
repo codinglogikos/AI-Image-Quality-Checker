@@ -51,6 +51,7 @@ app.get('/api/report.pdf',async(req,res)=>{
    doc.text('Score: '+(r.score??'N/A')+' | '+r.width+' x '+r.height+' | '+r.megapixels+' MP');
    doc.text('Issues: '+(r.issues?.join('; ')||'None'),{width:510});
    doc.text('Explanation: '+(r.explanation||'None'),{width:510});
+   if(r.suggestions?.length)doc.text('Suggested fixes: '+r.suggestions.join('; '),{width:510});
    if(['FAIL','REVIEW'].includes(r.status)&&r.outputPath){
     try{
      const root=path.resolve(r.status==='FAIL'?'Defected':'Review');
