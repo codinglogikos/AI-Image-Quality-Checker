@@ -24,28 +24,28 @@ AI-Image-Quality-Checker/
     report.json          <- report data
   check-images.js        <- terminal image inspection script
   engine.js              <- inspection engine
-  server.js              <- read-only report server
-  public/index.html      <- report dashboard
+  server.js              <- browser-run API and report server
+  public/index.html      <- run controls and report dashboard
 ```
 
 ## How it works
 - Recursively discovers supported JPEG, PNG, WEBP and TIFF images.
 - Resumes after interruption using recorded filenames, sizes and modification timestamps; unchanged PASS images are not rechecked. Images moved to Defected/Review remain in the historical report.
 - Checks image readability and a configurable minimum megapixel count locally.
-- Sends resized copies to the OpenAI API for visual QA. Clear major defects = FAIL, uncertain cases = REVIEW, clean images = PASS. Errors remain in the input folder.
+- Sends one overview plus four overlapping high-detail crops per image to the OpenAI API for stricter stock-quality screening. Serious visible defects = FAIL, moderate or uncertain defects = REVIEW, and no meaningful detected defects = PASS. The report includes concrete fix suggestions. Errors remain in the input folder.
 - Moves FAIL images to `Defected` and REVIEW images to `Review`, preserving nested subfolder paths. PASS images remain where they were.
 - Never overwrites an existing destination image; filename conflicts get a unique suffix.
 - Displays report with counts, scores, defect reasons, thumbnails of moved images and PDF export.
 
-## Cost confirmation
-Cost is estimated **before** sending new API requests using configured input/output token assumptions. The user must type Y to authorize proceeding. This is **not a hard spending cap**. Actual billed costs can differ; review the provider's current model prices and the configured token assumptions. A large number of files can incur significant charges.
+## Strict stock review\n- A new review version causes unchanged images still in the `images/` folder to be checked again. Previously moved FAIL/REVIEW images are not automatically rechecked unless you manually copy them back into `images/`.\n- The strict mode uses five image views per file and can cost more than the previous one-view review. Update your local `.env` token estimates to `ESTIMATED_INPUT_TOKENS=11000` and `ESTIMATED_OUTPUT_TOKENS=750` before starting; these remain estimates, not a cap.\n- Back up originals before checking: FAIL and REVIEW images are moved.\n\n## Cost confirmation
+Cost is estimated **before** sending new API requests using configured input/output token assumptions. The user must click **Yes, Continue** in the browser to authorize proceeding (or type Y when using the optional terminal CLI). This is **not a hard spending cap**. Actual billed costs can differ; review the provider's current model prices and the configured token assumptions. A large number of files can incur significant charges.
 
 ## Limitations and precautions
 - This is an initial implementation and has not yet been verified by a full local end-to-end run.
 - AI inspection is fallible and does **not** guarantee Adobe Stock acceptance.
-- No dedicated blur metric or complete Adobe Stock technical validation yet.
+- There is no dedicated numeric blur metric or official Adobe Stock acceptance integration; AI assessments can still miss defects. The model's quality score is NOT an Adobe score.
 - Files are **moved**, not copied. Back up your originals before your first run.
-- Stopping with Ctrl+C is best-effort; if a request is already in progress, wait for it to finish.
+- Stop After Current Image is best-effort; an in-flight API request can finish and incur charges.
 - For privacy, report server binds only to localhost (127.0.0.1).
 - PDF and thumbnails use the report data stored locally.
 - `.env`, `runtime`, `images`, `Defected`, and `Review` should not be committed to GitHub.
