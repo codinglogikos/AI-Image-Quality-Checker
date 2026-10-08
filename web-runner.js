@@ -21,7 +21,7 @@ export async function start(token){
  const plan=current.plan;
  // Check files are still present and unchanged before honoring this estimate.
  for(const p of plan.pending){let now;try{now=await signature(p.relativePath)}catch{throw Error('Input folder changed. Please estimate again.')}if(!sameSignature(now,p.sig))throw Error('Input folder changed. Please estimate again.')}
- const nowFiles=await scan();if(nowFiles.length!==plan.totalImages||nowFiles.some((name,i)=>name!== (await Promise.resolve(plan.fileNames))[i]))throw Error('Input folder changed. Please estimate again.');
+ const nowFiles=await scan();if(nowFiles.length!==plan.totalImages||nowFiles.some((name,i)=>name!== plan.fileNames[i]))throw Error('Input folder changed. Please estimate again.');
  current={state:'running',processed:0,total:plan.pending.length,currentFile:'',error:''};stop=false;
  void run(plan).catch(e=>{current={...current,state:'error',error:e.message}});
  return {started:true};
