@@ -11,9 +11,9 @@ export async function prepare(){
  const pending=[];
  for(const relativePath of files){const sig=await signature(relativePath),old=known.get(relativePath);if(!old||old.status==='ERROR'||!sameSignature(sig,old.signature))pending.push({relativePath,sig})}
  const token=crypto.randomUUID();
- const plan={token,createdAt:Date.now(),totalImages:files.length,alreadyChecked:files.length-pending.length,pendingImages:pending.length,perImage:estimatePerImage,per1000:estimatePerImage*1000,totalCost:estimatePerImage*pending.length,pending};
+ const plan={token,createdAt:Date.now(),totalImages:files.length,alreadyChecked:files.length-pending.length,pendingImages:pending.length,perImage:estimatePerImage,per2000:estimatePerImage*2000,totalCost:estimatePerImage*pending.length,pending};
  current={state:'awaiting_confirmation',processed:0,total:pending.length,currentFile:'',error:'',plan};
- return {token,totalImages:plan.totalImages,alreadyChecked:plan.alreadyChecked,pendingImages:plan.pendingImages,perImage:plan.perImage,per1000:plan.per1000,totalCost:plan.totalCost};
+ return {token,totalImages:plan.totalImages,alreadyChecked:plan.alreadyChecked,pendingImages:plan.pendingImages,perImage:plan.perImage,per2000:plan.per2000,model:process.env.OPENAI_MODEL||'gpt-4.1-nano',totalCost:plan.totalCost};
 }
 export async function start(token){
  if(current?.state!=='awaiting_confirmation'||current.plan.token!==token)throw Error('Cost estimate expired. Click Start Checking again.');
