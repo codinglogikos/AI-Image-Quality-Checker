@@ -20,7 +20,7 @@ export async function vision(absolute){
  if(!client)throw Error('OPENAI_API_KEY missing in .env');
  const base=sharp(absolute,{failOn:'error',limitInputPixels:200000000}).rotate();
  const meta=await base.metadata();
- const width=meta.width||0,height=meta.height||0;
+ const swapped=[5,6,7,8].includes(meta.orientation);const width=swapped?(meta.height||0):(meta.width||0),height=swapped?(meta.width||0):(meta.height||0);
  if(!width||!height)throw Error('Unable to read image dimensions');
  const overview=await sharp(absolute,{failOn:'error'}).rotate().resize(1600,1600,{fit:'inside',withoutEnlargement:true}).jpeg({quality:88}).toBuffer();
  const imageParts=[{type:'image_url',image_url:{url:'data:image/jpeg;base64,'+overview.toString('base64'),detail:'high'}}];
