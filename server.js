@@ -5,9 +5,16 @@ import path from 'node:path';
 import sharp from 'sharp';
 import PDFDocument from 'pdfkit';
 import {REPORT,readJson,stats} from './engine.js';
+import {prepare,start,cancel,status,requestStop} from './web-runner.js';
 
 const app=express();
+app.use(express.json({limit:'8kb'}));
 app.use(express.static(path.resolve('public')));
+app.post('/api/check/estimate',async(req,res)=>{try{res.json(await prepare())}catch(e){res.status(409).json({error:e.message})}});
+app.post('/api/check/confirm',async(req,res)=>{try{res.json(await start(req.body?.token))}catch(e){res.status(409).json({error:e.message})}});
+app.post('/api/check/cancel',(req,res)=>{res.json({cancelled:cancel(req.body?.token)})});
+app.post('/api/check/stop',(req,res)=>{res.json({stopping:requestStop()})});
+app.get('/api/check/status',(req,res)=>{const s=status();res.json({state:s.state,processed:s.processed,total:s.total,currentFile:s.currentFile,error:s.error})});
 const getReport=async()=>await readJson(REPORT,{results:[],updatedAt:null});
 app.get('/api/report',async(req,res)=>{
  try{const report=await getReport();res.json({...report,summary:stats(report.results)})}

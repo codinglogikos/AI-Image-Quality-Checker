@@ -1,6 +1,6 @@
 # AI Image Quality Checker
 
-Local Windows Node.js script with a separate browser report dashboard. **No frontend image uploads.**
+Local Windows Node.js image checker with **browser-based Start, cost confirmation, progress and PDF reports**. **No frontend image uploads.**
 
 ## Setup
 1. Install Node.js 20+.
@@ -8,8 +8,10 @@ Local Windows Node.js script with a separate browser report dashboard. **No fron
 3. In the project folder run `npm install`.
 4. Copy `.env.example` to `.env`, and set `OPENAI_API_KEY`.
 5. Create or open the project's `images` folder. Paste image files or nested folders inside.
-6. Run `npm run check`. The script counts pending images and estimates the **additional API cost**. Answer **Y** to proceed or **N** to cancel before API calls.
-7. Run `npm run report`, then open http://127.0.0.1:3000 for the report, defect thumbnails and **Download PDF Report** button.
+6. Run `npm run report`, then open http://127.0.0.1:3000.
+7. Click **Start Checking** in the browser. The popup shows total images, already checked, remaining, selected API model, estimated cost per 2,000 images, and the total estimated API cost for the remaining images.
+8. Click **Yes, Continue** to authorize the API requests or **No, Cancel** to exit without sending any new image API requests. Progress and results update live in the browser.
+9. Inspect the results, thumbnails and **Download PDF Report** button. The optional `npm run check` terminal workflow is still available.
 
 ## Folder structure
 ```text
