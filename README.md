@@ -1,44 +1,49 @@
 # AI Image Quality Checker
 
-A local Node.js image quality inspection dashboard for Windows.
+Local Windows Node.js script with a separate browser report dashboard. **No frontend image uploads.**
 
-## Installation
-1. Install Node.js 20 or later.
+## Setup
+1. Install Node.js 20+.
 2. Clone or download this repository.
-3. Open a terminal in the project folder and run `npm install`.
-4. Copy `.env.example` to `.env` and set your OpenAI API key.
-5. Run `npm start`.
-6. Open http://127.0.0.1:3000 in your browser.
-7. Enter the absolute path of a local folder containing images, set an estimated USD budget, and click **Start**.
+3. In the project folder run `npm install`.
+4. Copy `.env.example` to `.env`, and set `OPENAI_API_KEY`.
+5. Create or open the project's `images` folder. Paste image files or nested folders inside.
+6. Run `npm run check`. The script counts pending images and estimates the **additional API cost**. Answer **Y** to proceed or **N** to cancel before API calls.
+7. Run `npm run report`, then open http://127.0.0.1:3000 for the report, defect thumbnails and **Download PDF Report** button.
 
-## Features
-- Recursive scanning of folders and nested subfolders.
-- Local file decoding and minimum-megapixel screening.
-- AI review of malformed anatomy, shadows, reflections, objects, text and other visual artifacts.
-- PASS, REVIEW, FAIL and ERROR statuses.
-- FAIL images copied to `runtime/<job-id>/Defected`; REVIEW images copied to `runtime/<job-id>/Review`. Original files remain unchanged.
-- Detailed `Quality_Report.csv` including original path, image size, status, score, issues and estimated token cost.
-- Dashboard progress, stop and resume.
-- Configurable AI model and estimated budget.
+## Folder structure
+```text
+AI-Image-Quality-Checker/
+  images/                <- put images and nested folders here
+  Defected/              <- FAIL images MOVED here (subfolders preserved)
+  Review/                <- REVIEW images MOVED here (subfolders preserved)
+  runtime/
+    check-state.json     <- resume information
+    report.json          <- report data
+  check-images.js        <- terminal image inspection script
+  engine.js              <- inspection engine
+  server.js              <- read-only report server
+  public/index.html      <- report dashboard
+```
 
-## Important limitations
-- This is an initial implementation, not a fully tested production release.
-- The AI review is advisory and does not guarantee Adobe Stock acceptance.
-- Local screening currently checks decodability and megapixels, but **does not yet implement** a dedicated blur detector or full Adobe technical-rule validation.
-- Resume works for stopped/interrupted jobs; exhausted budgets require a new job.
-- The spending cap is an estimate based on token pricing configured in `.env`, **not** a provider-enforced hard limit.
-- Processing is sequential; asynchronous OpenAI Batch API support is not implemented.
-- Verify the selected model's current availability and pricing before use.
-- Do not expose the local dashboard to the public internet.
+## How it works
+- Recursively discovers supported JPEG, PNG, WEBP and TIFF images.
+- Resumes after interruption using recorded filenames, sizes and modification timestamps; unchanged PASS images are not rechecked. Images moved to Defected/Review remain in the historical report.
+- Checks image readability and a configurable minimum megapixel count locally.
+- Sends resized copies to the OpenAI API for visual QA. Clear major defects = FAIL, uncertain cases = REVIEW, clean images = PASS. Errors remain in the input folder.
+- Moves FAIL images to `Defected` and REVIEW images to `Review`, preserving nested subfolder paths. PASS images remain where they were.
+- Never overwrites an existing destination image; filename conflicts get a unique suffix.
+- Displays report with counts, scores, defect reasons, thumbnails of moved images and PDF export.
 
-## Security
-- Server listens on 127.0.0.1.
-- API key is stored in `.env`, which is excluded from Git.
-- Source images are never served by the dashboard.
-- Resized image copies are sent to the OpenAI API for analysis.
+## Cost confirmation
+Cost is estimated **before** sending new API requests using configured input/output token assumptions. The user must type Y to authorize proceeding. This is **not a hard spending cap**. Actual billed costs can differ; review the provider's current model prices and the configured token assumptions. A large number of files can incur significant charges.
 
-## Supported files
-JPEG, PNG, WEBP, TIFF.
-
-## Outputs
-Each run creates `runtime/<job-id>/Quality_Report.csv`, with copied images in the `Defected` and `Review` folders as needed.
+## Limitations and precautions
+- This is an initial implementation and has not yet been verified by a full local end-to-end run.
+- AI inspection is fallible and does **not** guarantee Adobe Stock acceptance.
+- No dedicated blur metric or complete Adobe Stock technical validation yet.
+- Files are **moved**, not copied. Back up your originals before your first run.
+- Stopping with Ctrl+C is best-effort; if a request is already in progress, wait for it to finish.
+- For privacy, report server binds only to localhost (127.0.0.1).
+- PDF and thumbnails use the report data stored locally.
+- `.env`, `runtime`, `images`, `Defected`, and `Review` should not be committed to GitHub.
